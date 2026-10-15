@@ -1,114 +1,148 @@
-/* Mera Ghar Rehaish — interactions */
+/* Mera Ghar Rehaish v3 — interactions */
 (function () {
   'use strict';
 
-  /* ============================================================
-   * WHATSAPP NUMBER
-   * No real business WhatsApp number is known for this client yet.
-   * Paste the real number (digits only, with country code, e.g.
-   * "923001234567") into WHATSAPP_NUMBER when it becomes available.
-   * Empty string = every [data-wa] button falls back to #contact.
-   * ============================================================ */
-  const WHATSAPP_NUMBER = ""; // real business number goes here when known
+  /* ── WhatsApp wiring: paste the client's real number here (e.g. "923001234567").
+     Until then, every WhatsApp button falls back to the #contact section. ── */
+  const WHATSAPP_NUMBER = "";
 
-  /* ---- Wire up all WhatsApp buttons ---- */
-  var waLinks = document.querySelectorAll('[data-wa]');
-  if (WHATSAPP_NUMBER) {
-    waLinks.forEach(function (a) {
-      var msg = a.getAttribute('data-msg') || 'Assalam-o-Alaikum, I want details about Mera Ghar Rehaish.';
-      a.setAttribute('href', 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(msg));
+  document.querySelectorAll('[data-wa]').forEach(function (a) {
+    if (WHATSAPP_NUMBER) {
+      var text = encodeURIComponent("Assalam-o-Alaikum! I saw the Mera Ghar Rehaish website and I'd like to know more.");
+      a.setAttribute('href', 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + text);
       a.setAttribute('target', '_blank');
       a.setAttribute('rel', 'noopener');
-    });
-  }
-  /* If WHATSAPP_NUMBER is empty, links keep href="#contact" fallback. */
-
-  /* ---- Mobile nav toggle ---- */
-  var nav = document.getElementById('siteNav');
-  var toggle = document.getElementById('navToggle');
-  var navLinks = document.getElementById('navLinks');
-  toggle.addEventListener('click', function () {
-    var open = nav.classList.toggle('open');
-    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-    toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
-  });
-  navLinks.addEventListener('click', function (e) {
-    if (e.target.closest('a')) {
-      nav.classList.remove('open');
-      toggle.setAttribute('aria-expanded', 'false');
+    } else {
+      a.setAttribute('href', '#contact');
     }
   });
 
-  /* ---- Sticky-nav shadow on scroll ---- */
-  function onScroll() {
-    nav.classList.toggle('scrolled', window.scrollY > 8);
-  }
+  /* ── nav: solid on scroll ── */
+  var nav = document.getElementById('nav');
+  function onScroll() { nav.classList.toggle('scrolled', window.scrollY > 24); }
   window.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
 
-  /* ---- IntersectionObserver scroll-reveal ---- */
-  var revealEls = document.querySelectorAll('.reveal');
-  if ('IntersectionObserver' in window) {
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) {
-        if (en.isIntersecting) {
-          en.target.classList.add('in');
-          io.unobserve(en.target);
-        }
-      });
-    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
-    revealEls.forEach(function (el) { io.observe(el); });
-  } else {
-    revealEls.forEach(function (el) { el.classList.add('in'); });
-  }
+  /* ── mobile menu ── */
+  var burger = document.getElementById('burger');
+  var navLinks = document.getElementById('navLinks');
+  burger.addEventListener('click', function () {
+    var open = navLinks.classList.toggle('open');
+    nav.classList.toggle('open', open);
+    burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+    burger.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  });
+  navLinks.querySelectorAll('a').forEach(function (a) {
+    a.addEventListener('click', function () {
+      navLinks.classList.remove('open');
+      nav.classList.remove('open');
+      burger.setAttribute('aria-expanded', 'false');
+    });
+  });
 
-  /* ---- Animated stat counters ---- */
-  var counters = document.querySelectorAll('.count');
+  /* ── services accordion ── */
+  document.querySelectorAll('.svc-row').forEach(function (row) {
+    var head = row.querySelector('.svc-head');
+    var panel = row.querySelector('.svc-panel');
+    head.addEventListener('click', function () {
+      var isOpen = row.classList.contains('open');
+      document.querySelectorAll('.svc-row.open').forEach(function (r) {
+        r.classList.remove('open');
+        r.querySelector('.svc-panel').style.maxHeight = null;
+        r.querySelector('.svc-head').setAttribute('aria-expanded', 'false');
+      });
+      if (!isOpen) {
+        row.classList.add('open');
+        panel.style.maxHeight = panel.scrollHeight + 'px';
+        head.setAttribute('aria-expanded', 'true');
+      }
+    });
+  });
+  // open the first service by default
+  var firstSvc = document.querySelector('.svc-row .svc-head');
+  if (firstSvc) firstSvc.click();
+
+  /* ── animated counters ── */
   function animateCount(el) {
     var target = parseInt(el.getAttribute('data-count'), 10) || 0;
-    var dur = 1400;
-    var start = null;
+    var dur = 1400, start = null;
     function step(ts) {
       if (!start) start = ts;
       var p = Math.min((ts - start) / dur, 1);
       var eased = 1 - Math.pow(1 - p, 3);
-      el.textContent = Math.round(target * eased).toLocaleString('en-PK');
+      el.textContent = Math.round(target * eased).toLocaleString('en-US');
       if (p < 1) requestAnimationFrame(step);
     }
     requestAnimationFrame(step);
   }
-  if ('IntersectionObserver' in window) {
-    var cio = new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) {
-        if (en.isIntersecting) {
-          animateCount(en.target);
-          cio.unobserve(en.target);
-        }
-      });
-    }, { threshold: 0.4 });
-    counters.forEach(function (el) { cio.observe(el); });
-  } else {
-    counters.forEach(animateCount);
+  var counted = new WeakSet();
+  var countObs = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting && !counted.has(e.target)) {
+        counted.add(e.target);
+        animateCount(e.target);
+        countObs.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.4 });
+  document.querySelectorAll('[data-count]').forEach(function (el) { countObs.observe(el); });
+
+  /* ── testimonial carousel ── */
+  var track = document.getElementById('carTrack');
+  var dotsWrap = document.getElementById('carDots');
+  var slides = track ? track.children.length : 0;
+  var idx = 0, timer = null;
+  function go(n) {
+    idx = (n + slides) % slides;
+    track.style.transform = 'translateX(-' + (idx * 100) + '%)';
+    dotsWrap.querySelectorAll('button').forEach(function (d, i) {
+      d.classList.toggle('active', i === idx);
+      d.setAttribute('aria-label', 'Go to review ' + (i + 1));
+    });
+    restart();
+  }
+  function restart() {
+    if (timer) clearInterval(timer);
+    timer = setInterval(function () { go(idx + 1); }, 6000);
+  }
+  if (track && slides > 1) {
+    for (var i = 0; i < slides; i++) {
+      (function (n) {
+        var b = document.createElement('button');
+        b.setAttribute('aria-label', 'Go to review ' + (n + 1));
+        b.addEventListener('click', function () { go(n); });
+        dotsWrap.appendChild(b);
+      })(i);
+    }
+    document.getElementById('carPrev').addEventListener('click', function () { go(idx - 1); });
+    document.getElementById('carNext').addEventListener('click', function () { go(idx + 1); });
+    var car = document.getElementById('carousel');
+    car.addEventListener('mouseenter', function () { if (timer) clearInterval(timer); });
+    car.addEventListener('mouseleave', restart);
+    go(0);
   }
 
-  /* ---- Contact form -> prefilled mailto ---- */
+  /* ── reveal on scroll ── */
+  var revealObs = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) { e.target.classList.add('in'); revealObs.unobserve(e.target); }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  document.querySelectorAll('.reveal').forEach(function (el) { revealObs.observe(el); });
+
+  /* ── contact form → email ── */
   var form = document.getElementById('contactForm');
-  form.addEventListener('submit', function (e) {
-    e.preventDefault();
-    var name = document.getElementById('cfName').value.trim();
-    var phone = document.getElementById('cfPhone').value.trim();
-    var msg = document.getElementById('cfMsg').value.trim();
-    if (!name || !phone || !msg) {
-      [document.getElementById('cfName'), document.getElementById('cfPhone'), document.getElementById('cfMsg')].forEach(function (f) {
-        if (!f.value.trim()) f.style.borderColor = '#b3261e';
-        f.addEventListener('input', function () { f.style.borderColor = ''; }, { once: true });
-      });
-      return;
-    }
-    var subject = 'Website enquiry from ' + name;
-    var body = 'Name: ' + name + '\nPhone: ' + phone + '\n\nMessage:\n' + msg;
-    window.location.href = 'mailto:meragharrehaish@gmail.com'
-      + '?subject=' + encodeURIComponent(subject)
-      + '&body=' + encodeURIComponent(body);
+  var note = document.getElementById('formNote');
+  form.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var name = form.name.value.trim();
+    var phone = form.phone.value.trim();
+    var interest = form.interest.value;
+    var msg = form.message.value.trim();
+    var subject = encodeURIComponent('Website enquiry from ' + name);
+    var body = encodeURIComponent('Name: ' + name + '\nPhone: ' + phone + '\nInterested in: ' + interest + '\n\nMessage:\n' + msg);
+    window.location.href = 'mailto:meragharrehaish@gmail.com?subject=' + subject + '&body=' + body;
+    note.textContent = 'Opening your email app — we reply within a few hours.';
+    form.reset();
   });
 })();
