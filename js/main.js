@@ -2,75 +2,81 @@
 (function () {
   'use strict';
 
-  /* Anchor offset under fixed header */
-  document.querySelectorAll('section[id]').forEach(function (s) {
-    s.style.scrollMarginTop = '84px';
+  /* ============================================================
+   * WHATSAPP NUMBER
+   * No real business WhatsApp number is known for this client yet.
+   * Paste the real number (digits only, with country code, e.g.
+   * "923001234567") into WHATSAPP_NUMBER when it becomes available.
+   * Empty string = every [data-wa] button falls back to #contact.
+   * ============================================================ */
+  const WHATSAPP_NUMBER = ""; // real business number goes here when known
+
+  /* ---- Wire up all WhatsApp buttons ---- */
+  var waLinks = document.querySelectorAll('[data-wa]');
+  if (WHATSAPP_NUMBER) {
+    waLinks.forEach(function (a) {
+      var msg = a.getAttribute('data-msg') || 'Assalam-o-Alaikum, I want details about Mera Ghar Rehaish.';
+      a.setAttribute('href', 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(msg));
+      a.setAttribute('target', '_blank');
+      a.setAttribute('rel', 'noopener');
+    });
+  }
+  /* If WHATSAPP_NUMBER is empty, links keep href="#contact" fallback. */
+
+  /* ---- Mobile nav toggle ---- */
+  var nav = document.getElementById('siteNav');
+  var toggle = document.getElementById('navToggle');
+  var navLinks = document.getElementById('navLinks');
+  toggle.addEventListener('click', function () {
+    var open = nav.classList.toggle('open');
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  });
+  navLinks.addEventListener('click', function (e) {
+    if (e.target.closest('a')) {
+      nav.classList.remove('open');
+      toggle.setAttribute('aria-expanded', 'false');
+    }
   });
 
-  /* Header shadow on scroll */
-  var header = document.getElementById('siteHeader');
+  /* ---- Sticky-nav shadow on scroll ---- */
   function onScroll() {
-    header.classList.toggle('scrolled', window.scrollY > 12);
+    nav.classList.toggle('scrolled', window.scrollY > 8);
   }
   window.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
 
-  /* Mobile nav */
-  var toggle = document.getElementById('navToggle');
-  var nav = document.getElementById('mainNav');
-  function closeNav() {
-    nav.classList.remove('open');
-    toggle.classList.remove('active');
-    toggle.setAttribute('aria-expanded', 'false');
-    toggle.setAttribute('aria-label', 'Open menu');
-    document.body.style.overflow = '';
-  }
-  toggle.addEventListener('click', function () {
-    var open = nav.classList.toggle('open');
-    toggle.classList.toggle('active', open);
-    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-    toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
-    document.body.style.overflow = open ? 'hidden' : '';
-  });
-  nav.querySelectorAll('a').forEach(function (a) {
-    a.addEventListener('click', closeNav);
-  });
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') closeNav();
-  });
-
-  /* Reveal on scroll */
+  /* ---- IntersectionObserver scroll-reveal ---- */
   var revealEls = document.querySelectorAll('.reveal');
   if ('IntersectionObserver' in window) {
     var io = new IntersectionObserver(function (entries) {
       entries.forEach(function (en) {
         if (en.isIntersecting) {
-          en.target.classList.add('visible');
+          en.target.classList.add('in');
           io.unobserve(en.target);
         }
       });
     }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
     revealEls.forEach(function (el) { io.observe(el); });
   } else {
-    revealEls.forEach(function (el) { el.classList.add('visible'); });
+    revealEls.forEach(function (el) { el.classList.add('in'); });
   }
 
-  /* Animated counters */
+  /* ---- Animated stat counters ---- */
+  var counters = document.querySelectorAll('.count');
   function animateCount(el) {
-    var target = parseInt(el.getAttribute('data-count'), 10);
-    var suffix = el.getAttribute('data-suffix') || '';
-    var dur = 1400, start = null;
-    function fmt(n) { return n.toLocaleString('en-US'); }
-    function tick(ts) {
+    var target = parseInt(el.getAttribute('data-count'), 10) || 0;
+    var dur = 1400;
+    var start = null;
+    function step(ts) {
       if (!start) start = ts;
       var p = Math.min((ts - start) / dur, 1);
       var eased = 1 - Math.pow(1 - p, 3);
-      el.textContent = fmt(Math.round(target * eased)) + suffix;
-      if (p < 1) requestAnimationFrame(tick);
+      el.textContent = Math.round(target * eased).toLocaleString('en-PK');
+      if (p < 1) requestAnimationFrame(step);
     }
-    requestAnimationFrame(tick);
+    requestAnimationFrame(step);
   }
-  var counters = document.querySelectorAll('.stat-num');
   if ('IntersectionObserver' in window) {
     var cio = new IntersectionObserver(function (entries) {
       entries.forEach(function (en) {
@@ -80,23 +86,29 @@
         }
       });
     }, { threshold: 0.4 });
-    counters.forEach(function (c) { cio.observe(c); });
+    counters.forEach(function (el) { cio.observe(el); });
   } else {
     counters.forEach(animateCount);
   }
 
-  /* Contact form (demo) */
+  /* ---- Contact form -> prefilled mailto ---- */
   var form = document.getElementById('contactForm');
-  var note = document.getElementById('formNote');
   form.addEventListener('submit', function (e) {
     e.preventDefault();
-    var name = form.name.value.trim();
-    var phone = form.phone.value.trim();
-    if (!name || !phone) {
-      note.textContent = 'Please add your name and phone number so we can call you back.';
+    var name = document.getElementById('cfName').value.trim();
+    var phone = document.getElementById('cfPhone').value.trim();
+    var msg = document.getElementById('cfMsg').value.trim();
+    if (!name || !phone || !msg) {
+      [document.getElementById('cfName'), document.getElementById('cfPhone'), document.getElementById('cfMsg')].forEach(function (f) {
+        if (!f.value.trim()) f.style.borderColor = '#b3261e';
+        f.addEventListener('input', function () { f.style.borderColor = ''; }, { once: true });
+      });
       return;
     }
-    note.textContent = 'Thank you, ' + name + '! This is a demo form — please email us directly at meragharrehaish@gmail.com and we will call you back shortly.';
-    form.reset();
+    var subject = 'Website enquiry from ' + name;
+    var body = 'Name: ' + name + '\nPhone: ' + phone + '\n\nMessage:\n' + msg;
+    window.location.href = 'mailto:meragharrehaish@gmail.com'
+      + '?subject=' + encodeURIComponent(subject)
+      + '&body=' + encodeURIComponent(body);
   });
 })();
